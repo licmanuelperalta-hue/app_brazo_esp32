@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VISIONAI ARM - 5 SERVOS EMG</title>
+    <title>VISIONAI HAND - PROTESIS EMG 5 DEDOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
         <header class="topbar">
             <section class="brand-block" aria-label="Identidad del sistema">
                 <span class="eyebrow">VISIONAI / ESP32</span>
-                <h1>Brazo Robotico EMG</h1>
+                <h1>Protesis de Mano EMG</h1>
             </section>
 
             <section class="network-card" aria-label="Conexion del ESP32">
@@ -167,13 +167,21 @@
             <pre id="payload-preview">{}</pre>
         </section>
 
-        <section class="muscle-panel" aria-label="Activacion muscular">
+        <section class="finger-panel" aria-label="Activacion dedos">
             <div class="panel-heading">
-                <span class="eyebrow">Visualizacion muscular</span>
-                <h2>Musculos Actuados</h2>
+                <span class="eyebrow">Visualizacion dedos</span>
+                <h2>Dedos Actuados</h2>
             </div>
-            <div class="muscle-grid" id="muscle-grid">
+            <div class="finger-grid" id="muscle-grid">
             </div>
+        </section>
+
+        <section class="force-panel" aria-label="Grafica de fuerza EMG">
+            <div class="panel-heading">
+                <span class="eyebrow">Telemetria EMG</span>
+                <h2>Fuerza Muscular en Tiempo Real</h2>
+            </div>
+            <canvas id="force-canvas" class="force-canvas" aria-label="Grafica lineal de fuerza EMG"></canvas>
         </section>
     </main>
 

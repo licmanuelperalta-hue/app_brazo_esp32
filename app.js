@@ -1,7 +1,8 @@
-const DEFAULT_SERVO_ANGLES = [90, 90, 90, 90, 90];
-const SERVO_NAMES = ["base", "hombro", "codo", "muneca", "pinza"];
+const DEFAULT_SERVO_ANGLES = [0, 0, 0, 0, 0];
+const SERVO_NAMES = ["pulgar", "indice", "medio", "anular", "menique"];
 const SEND_INTERVAL_MS = 80;
 const EMG_MAX_ADC = 4095;
+const FORCE_HISTORY_LENGTH = 100;
 
 const state = {
     socket: null,
@@ -10,15 +11,16 @@ const state = {
     servos: [...DEFAULT_SERVO_ANGLES],
     emg: {
         enabled: false,
-        targetServo: 4,
+        targetServo: 0,
         low: 650,
         high: 2200,
-        openAngle: 20,
-        closeAngle: 120,
+        openAngle: 90,
+        closeAngle: 0,
         raw: 0,
         level: 0
     },
-    lastPacketAt: null
+    lastPacketAt: null,
+    forceHistory: Array(FORCE_HISTORY_LENGTH).fill(0)
 };
 
 const elements = {
@@ -42,7 +44,8 @@ const elements = {
     packetReadout: document.getElementById("packet-readout"),
     emgBar: document.getElementById("emg-bar"),
     payloadPreview: document.getElementById("payload-preview"),
-    muscleGrid: document.getElementById("muscle-grid")
+    muscleGrid: document.getElementById("muscle-grid"),
+    forceCanvas: document.getElementById("force-canvas")
 };
 
 const servoInputs = DEFAULT_SERVO_ANGLES.map((_, index) => document.getElementById(`servo-${index}`));
@@ -170,6 +173,9 @@ function handleTelemetry(rawMessage) {
     state.emg.raw = raw;
     state.emg.level = level;
     state.lastPacketAt = new Date();
+    
+    state.forceHistory.shift();
+    state.forceHistory.push(level);
 
     elements.emgReadout.textContent = `${raw}`;
     elements.signalReadout.textContent = `${level}%`;
@@ -179,6 +185,8 @@ function handleTelemetry(rawMessage) {
     if (Array.isArray(data.servos)) {
         data.servos.slice(0, 5).forEach((angle, index) => updateServo(index, angle));
     }
+    
+    drawForceGraph();
 }
 
 function sendPayload() {
@@ -223,13 +231,13 @@ elements.connectBtn.addEventListener("click", connect);
 function initMuscleGrid() {
     if (!elements.muscleGrid) return;
     elements.muscleGrid.innerHTML = SERVO_NAMES.map((name, index) => `
-        <article class="muscle-item" data-muscle="${index}">
-            <span class="muscle-name">${name.toUpperCase()}</span>
-            <div class="muscle-bar-container">
-                <div class="muscle-bar" id="muscle-bar-${index}" style="width: 0%"></div>
+        <article class="finger-item" data-finger="${index}">
+            <span class="finger-name">${name.toUpperCase()}</span>
+            <div class="finger-bar-container">
+                <div class="finger-bar" id="finger-bar-${index}" style="width: 0%"></div>
             </div>
-            <span class="muscle-value" id="muscle-value-${index}">0&deg;</span>
-            <span class="muscle-label">${state.servos[index]}&deg;</span>
+            <span class="finger-value" id="finger-value-${index}">0&deg;</span>
+            <span class="finger-label">${state.servos[index]}&deg;</span>
         </article>
     `).join('');
 }
@@ -237,21 +245,88 @@ function initMuscleGrid() {
 function updateMuscleGrid() {
     if (!elements.muscleGrid) return;
     
-    const items = elements.muscleGrid.querySelectorAll('.muscle-item');
+    const items = elements.muscleGrid.querySelectorAll('.finger-item');
     items.forEach((item, index) => {
         const angle = state.servos[index];
-        const bar = item.querySelector('.muscle-bar');
-        const valueEl = item.querySelector('.muscle-value');
-        const labelEl = item.querySelector('.muscle-label');
+        const bar = item.querySelector('.finger-bar');
+        const valueEl = item.querySelector('.finger-value');
+        const labelEl = item.querySelector('.finger-label');
         
         const percent = Math.round((angle / 180) * 100);
         bar.style.width = `${percent}%`;
         valueEl.textContent = `${angle}°`;
         labelEl.textContent = `${angle}°`;
         
-        item.classList.toggle('active', angle !== 90);
+        item.classList.toggle('active', angle > 10);
         item.classList.toggle('emg-target', state.emg.enabled && state.mode === 'emg' && index === state.emg.targetServo);
     });
+}
+
+function drawForceGraph() {
+    const canvas = elements.forceCanvas;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    
+    const width = rect.width;
+    const height = rect.height;
+    const padding = 20;
+    const graphWidth = width - padding * 2;
+    const graphHeight = height - padding * 2;
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    ctx.strokeStyle = 'rgba(101, 183, 255, 0.15)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = padding + (graphHeight / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(width - padding, y);
+        ctx.stroke();
+    }
+    for (let i = 0; i <= 10; i++) {
+        const x = padding + (graphWidth / 10) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, padding);
+        ctx.lineTo(x, height - padding);
+        ctx.stroke();
+    }
+    
+    const history = state.forceHistory;
+    const maxForce = Math.max(...history, 1);
+    
+    const gradient = ctx.createLinearGradient(0, height - padding, 0, padding);
+    gradient.addColorStop(0, '#ff4444');
+    gradient.addColorStop(0.5, '#ffaa00');
+    gradient.addColorStop(1, '#ffffff');
+    
+    ctx.beginPath();
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    history.forEach((force, i) => {
+        const x = padding + (graphWidth / (FORCE_HISTORY_LENGTH - 1)) * i;
+        const y = height - padding - (force / maxForce) * graphHeight;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '11px Rajdhani';
+    ctx.fillText('Fuerza EMG (tiempo real)', padding, 14);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.font = '10px Rajdhani';
+    ctx.fillText(`${Math.round(state.emg.level)}%`, width - padding - 40, height - 4);
 }
 
 updateEmgConfig();
@@ -259,3 +334,4 @@ DEFAULT_SERVO_ANGLES.forEach((angle, index) => updateServo(index, angle));
 initMuscleGrid();
 setMode("manual");
 setInterval(sendPayload, SEND_INTERVAL_MS);
+setInterval(drawForceGraph, 100);

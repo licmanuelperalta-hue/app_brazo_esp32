@@ -1,15 +1,16 @@
 :root {
-    --bg: #07100d;
-    --panel: #101a17;
-    --panel-2: #14231f;
-    --line: rgba(143, 211, 190, 0.22);
-    --text: #eef8f1;
-    --muted: #98aaa1;
-    --mint: #68f2b0;
+    --bg: #050a10;
+    --panel: #0a1420;
+    --panel-2: #0d1b2e;
+    --line: rgba(101, 183, 255, 0.22);
+    --text: #f0f8ff;
+    --muted: #8aa8c8;
     --blue: #65b7ff;
-    --amber: #ffcb70;
-    --danger: #ff5c7a;
-    --shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+    --blue-bright: #8dd3ff;
+    --white: #ffffff;
+    --red: #ff4444;
+    --red-bright: #ff6b6b;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -140,8 +141,8 @@ select:focus {
 .mode-switch button {
     min-height: 42px;
     border: 1px solid transparent;
-    color: #06100c;
-    background: var(--mint);
+    color: #050a10;
+    background: var(--blue);
     font-weight: 800;
     text-transform: uppercase;
 }
@@ -154,8 +155,8 @@ select:focus {
 }
 
 .link-led.is-online {
-    background: var(--mint);
-    box-shadow: 0 0 16px var(--mint);
+    background: var(--blue);
+    box-shadow: 0 0 16px var(--blue);
 }
 
 .status-strip {
@@ -205,8 +206,8 @@ select:focus {
 }
 
 .mode-switch button.is-active {
-    background: var(--blue);
-    color: #04111d;
+    background: var(--white);
+    color: #050a10;
 }
 
 .toggle-row {
@@ -295,7 +296,7 @@ output {
 
 input[type="range"] {
     padding: 0;
-    accent-color: var(--mint);
+    accent-color: var(--blue);
 }
 
 .telemetry-panel {
@@ -312,7 +313,7 @@ input[type="range"] {
 .emg-bar {
     width: 0%;
     height: 100%;
-    background: linear-gradient(90deg, var(--blue), var(--mint), var(--amber), var(--danger));
+    background: linear-gradient(90deg, var(--red), var(--blue), var(--white));
     transition: width 0.12s ease;
 }
 
@@ -327,8 +328,10 @@ pre {
 }
 
 .is-stopped .servo-card,
-.is-stopped .telemetry-panel {
-    border-color: rgba(255, 92, 122, 0.65);
+.is-stopped .telemetry-panel,
+.is-stopped .finger-panel,
+.is-stopped .force-panel {
+    border-color: rgba(255, 68, 68, 0.65);
 }
 
 @media (max-width: 900px) {
@@ -352,19 +355,20 @@ pre {
     }
 }
 
-.muscle-panel {
+.finger-panel,
+.force-panel {
     margin-top: 14px;
     padding: 18px;
 }
 
-.muscle-grid {
+.finger-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 12px;
 }
 
-.muscle-item {
-    background: #08110f;
+.finger-item {
+    background: #081420;
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 14px;
@@ -375,17 +379,17 @@ pre {
     transition: all 0.2s ease;
 }
 
-.muscle-item.active {
-    border-color: var(--mint);
-    box-shadow: 0 0 20px rgba(104, 242, 176, 0.3);
+.finger-item.active {
+    border-color: var(--red);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
 }
 
-.muscle-item.emg-target {
+.finger-item.emg-target {
     border-color: var(--blue);
-    background: rgba(101, 183, 255, 0.08);
+    background: rgba(101, 183, 255, 0.12);
 }
 
-.muscle-name {
+.finger-name {
     font-family: "Orbitron", sans-serif;
     font-size: 0.75rem;
     font-weight: 700;
@@ -394,43 +398,52 @@ pre {
     letter-spacing: 0.05em;
 }
 
-.muscle-bar-container {
+.finger-bar-container {
     width: 100%;
     height: 60px;
-    background: #07100d;
+    background: #050a10;
     border: 1px solid var(--line);
     border-radius: 4px;
     overflow: hidden;
     position: relative;
 }
 
-.muscle-bar {
+.finger-bar {
     width: 0%;
     height: 100%;
-    background: linear-gradient(180deg, var(--danger), var(--amber), var(--mint), var(--blue));
+    background: linear-gradient(180deg, var(--red), var(--blue), var(--white));
     transition: width 0.15s ease, background 0.2s ease;
     border-radius: 3px 3px 0 0;
 }
 
-.muscle-value {
+.finger-value {
     font-family: "Orbitron", sans-serif;
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--mint);
+    color: var(--red);
 }
 
-.muscle-item.emg-target .muscle-value {
+.finger-item.emg-target .finger-value {
     color: var(--blue);
 }
 
-.muscle-label {
+.finger-label {
     font-size: 0.7rem;
     color: var(--muted);
     text-align: center;
 }
 
+.force-canvas {
+    width: 100%;
+    height: 200px;
+    background: #050a10;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: block;
+}
+
 @media (max-width: 900px) {
-    .muscle-grid {
+    .finger-grid {
         grid-template-columns: repeat(3, 1fr);
     }
 }
@@ -446,7 +459,8 @@ pre {
     .control-panel,
     .servo-card,
     .telemetry-panel,
-    .muscle-panel {
+    .finger-panel,
+    .force-panel {
         padding: 14px;
     }
 
@@ -454,7 +468,7 @@ pre {
         grid-template-columns: 1fr;
     }
 
-    .muscle-grid {
+    .finger-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
