@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VISIONAI ARM - 5 SERVOS EMG</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="app-shell">
+        <header class="topbar">
+            <section class="brand-block" aria-label="Identidad del sistema">
+                <span class="eyebrow">VISIONAI / ESP32</span>
+                <h1>Brazo Robotico EMG</h1>
+            </section>
+
+            <section class="network-card" aria-label="Conexion del ESP32">
+                <div>
+                    <span class="label">Red ESP32</span>
+                    <strong>visionai</strong>
+                </div>
+                <div>
+                    <span class="label">Clave</span>
+                    <strong>12345678</strong>
+                </div>
+                <div class="endpoint-wrap">
+                    <label for="esp32-url">WebSocket</label>
+                    <input id="esp32-url" type="text" value="ws://192.168.4.1:81">
+                </div>
+                <button id="connect-btn" type="button">Conectar</button>
+                <span id="link-led" class="link-led" aria-label="Estado de conexion"></span>
+            </section>
+        </header>
+
+        <section class="status-strip" aria-label="Estado general">
+            <article>
+                <span class="label">Modo</span>
+                <strong id="mode-readout">Manual</strong>
+            </article>
+            <article>
+                <span class="label">EMG</span>
+                <strong id="emg-readout">0</strong>
+            </article>
+            <article>
+                <span class="label">Senal</span>
+                <strong id="signal-readout">Sin datos</strong>
+            </article>
+            <article>
+                <span class="label">Ultimo paquete</span>
+                <strong id="packet-readout">--</strong>
+            </article>
+        </section>
+
+        <section class="control-layout">
+            <aside class="control-panel">
+                <div class="panel-heading">
+                    <span class="eyebrow">Control</span>
+                    <h2>Operacion</h2>
+                </div>
+
+                <div class="mode-switch" role="group" aria-label="Seleccion de modo">
+                    <button id="manual-mode" class="is-active" type="button">Manual</button>
+                    <button id="emg-mode" type="button">Musculo</button>
+                </div>
+
+                <label class="toggle-row">
+                    <input id="enable-emg" type="checkbox">
+                    <span>Activar lectura EMG</span>
+                </label>
+
+                <label class="field">
+                    <span>Servo controlado por EMG</span>
+                    <select id="emg-servo">
+                        <option value="4">Pinza</option>
+                        <option value="0">Base</option>
+                        <option value="1">Hombro</option>
+                        <option value="2">Codo</option>
+                        <option value="3">Muneca</option>
+                    </select>
+                </label>
+
+                <div class="field two-col">
+                    <label>
+                        <span>Umbral bajo</span>
+                        <input id="emg-low" type="number" min="0" max="4095" value="650">
+                    </label>
+                    <label>
+                        <span>Umbral alto</span>
+                        <input id="emg-high" type="number" min="0" max="4095" value="2200">
+                    </label>
+                </div>
+
+                <div class="field two-col">
+                    <label>
+                        <span>Abierto</span>
+                        <input id="open-angle" type="number" min="0" max="180" value="20">
+                    </label>
+                    <label>
+                        <span>Cerrado</span>
+                        <input id="close-angle" type="number" min="0" max="180" value="120">
+                    </label>
+                </div>
+
+                <button id="rest-btn" class="secondary-action" type="button">Posicion de reposo</button>
+                <button id="stop-btn" class="danger-action" type="button">Paro seguro</button>
+            </aside>
+
+            <section class="servo-board" aria-label="Servos del brazo robotico">
+                <article class="servo-card" data-servo="0">
+                    <div class="servo-top">
+                        <span class="servo-index">S1</span>
+                        <h3>Base</h3>
+                    </div>
+                    <output id="servo-value-0">90 grados</output>
+                    <input id="servo-0" type="range" min="0" max="180" value="90">
+                </article>
+
+                <article class="servo-card" data-servo="1">
+                    <div class="servo-top">
+                        <span class="servo-index">S2</span>
+                        <h3>Hombro</h3>
+                    </div>
+                    <output id="servo-value-1">90 grados</output>
+                    <input id="servo-1" type="range" min="0" max="180" value="90">
+                </article>
+
+                <article class="servo-card" data-servo="2">
+                    <div class="servo-top">
+                        <span class="servo-index">S3</span>
+                        <h3>Codo</h3>
+                    </div>
+                    <output id="servo-value-2">90 grados</output>
+                    <input id="servo-2" type="range" min="0" max="180" value="90">
+                </article>
+
+                <article class="servo-card" data-servo="3">
+                    <div class="servo-top">
+                        <span class="servo-index">S4</span>
+                        <h3>Muneca</h3>
+                    </div>
+                    <output id="servo-value-3">90 grados</output>
+                    <input id="servo-3" type="range" min="0" max="180" value="90">
+                </article>
+
+                <article class="servo-card grip-card" data-servo="4">
+                    <div class="servo-top">
+                        <span class="servo-index">S5</span>
+                        <h3>Pinza</h3>
+                    </div>
+                    <output id="servo-value-4">90 grados</output>
+                    <input id="servo-4" type="range" min="0" max="180" value="90">
+                </article>
+            </section>
+        </section>
+
+        <section class="telemetry-panel" aria-label="Telemetria EMG">
+            <div class="panel-heading">
+                <span class="eyebrow">Sensor muscular</span>
+                <h2>Lectura EMG</h2>
+            </div>
+            <div class="emg-meter">
+                <div id="emg-bar" class="emg-bar"></div>
+            </div>
+            <pre id="payload-preview">{}</pre>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

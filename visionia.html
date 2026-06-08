@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI MOTION MOBILE</title>
+    
+    <!-- Librerías MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --cyan: #00f2ff;
+            --pink: #ff00ff;
+            --bg: #050508;
+            --panel: rgba(15, 25, 40, 0.9);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background: var(--bg);
+            color: var(--cyan);
+            font-family: 'Rajdhani', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            text-transform: uppercase;
+        }
+
+        /* HEADER */
+        header {
+            padding: 10px;
+            background: var(--panel);
+            border-bottom: 2px solid var(--cyan);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; }
+
+        .conn-bar {
+            display: flex;
+            width: 100%;
+            gap: 5px;
+        }
+
+        input {
+            flex: 1;
+            background: #000;
+            border: 1px solid var(--cyan);
+            color: white;
+            padding: 8px;
+            font-family: monospace;
+            border-radius: 4px;
+        }
+
+        button {
+            background: var(--cyan);
+            color: #000;
+            border: none;
+            padding: 8px 15px;
+            font-weight: bold;
+            font-family: 'Rajdhani';
+            border-radius: 4px;
+        }
+
+        /* VIDEO AREA */
+        .video-box {
+            position: relative;
+            width: 100%;
+            height: 40vh;
+            background: #000;
+            border-bottom: 1px solid var(--cyan);
+        }
+
+        #output-canvas { width: 100%; height: 100%; object-fit: cover; }
+        #input-video { display: none; }
+
+        .scanline {
+            position: absolute; width: 100%; height: 2px;
+            background: var(--cyan); opacity: 0.3;
+            top: 0; animation: scanning 2s linear infinite;
+        }
+
+        @keyframes scanning { from { top: 0; } to { top: 100%; } }
+
+        /* MOTORS AREA */
+        .motors-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .motor-card {
+            background: var(--panel);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .motor-name { font-size: 0.7rem; color: #888; position: absolute; top: 5px; }
+
+        .gauge-wrap {
+            position: relative;
+            width: 100px; height: 100px;
+        }
+
+        .gauge-svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+        .g-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 8; }
+        .g-path { 
+            fill: none; stroke: var(--cyan); stroke-width: 8; 
+            stroke-dasharray: 283; stroke-dashoffset: 283;
+            transition: all 0.1s;
+        }
+
+        .val-text {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron'; font-size: 1.5rem;
+        }
+
+        .dir-text { margin-top: 5px; font-weight: bold; font-size: 0.9rem; }
+
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #333; margin-right: 5px;
+        }
+        .online { background: #0f0; box-shadow: 0 0 8px #0f0; }
+
+        .overlay {
+            position: fixed; inset: 0; background: rgba(255,0,0,0.6);
+            display: none; justify-content: center; align-items: center;
+            z-index: 100; font-family: 'Orbitron'; font-size: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+<div id="emergency-overlay" class="overlay">EMERGENCY STOP</div>
+
+<header>
+    <div class="logo">V-MOTION AI <span id="status-led" class="status-dot"></span></div>
+    <div class="conn-bar">
+        <input type="text" id="esp32-ip" value="ws://192.168.4.1:81">
+        <button id="connect-btn">LINK</button>
+    </div>
+</header>
+
+<div class="video-box">
+    <canvas id="output-canvas"></canvas>
+    <video id="input-video" playsinline></video>
+    <div class="scanline"></div>
+</div>
+
+<div class="motors-container">
+    <div class="motor-card" id="card-a">
+        <div class="motor-name">MOTOR_A [LEFT_H]</div>
+        <div class="gauge-wrap">
+            <svg class="gauge-svg" viewBox="0 0 100 100">
+                <circle class="g-bg" cx="50" cy="50" r="45"></circle>
+                <circle id="gauge-a" class="g-path" cx="50" cy="50" r="45"></circle>
+            </svg>
+            <div class="val-text" id="val-a">0</div>
+        </div>
+        <div class="dir-text" id="dir-a">IDLE</div>
+    </div>
+
+    <div class="motor-card" id="card-b">
+        <div class="motor-name">MOTOR_B [RIGHT_H]</div>
+        <div class="gauge-wrap">
+            <svg class="gauge-svg" viewBox="0 0 100 100">
+                <circle class="g-bg" cx="50" cy="50" r="45"></circle>
+                <circle id="gauge-b" class="g-path" cx="50" cy="50" r="45"></circle>
+            </svg>
+            <div class="val-text" id="val-b">0</div>
+        </div>
+        <div class="dir-text" id="dir-b">IDLE</div>
+    </div>
+</div>
+
+<script>
+    const videoElement = document.getElementById('input-video');
+    const canvasElement = document.getElementById('output-canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const connectBtn = document.getElementById('connect-btn');
+    const ipInput = document.getElementById('esp32-ip');
+
+    let socket = null;
+    let controlData = { motorA: 0, motorB: 0, direccionA: "forward", direccionB: "forward" };
+
+    const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+        maxNumHands: 2,
+        modelComplexity: 0, // Optimizado para móvil
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7
+    });
+
+    hands.onResults(onResults);
+
+    const camera = new Camera(videoElement, {
+        onFrame: async () => { await hands.send({ image: videoElement }); },
+        width: 640, height: 480, facingMode: "user"
+    });
+    camera.start();
+
+    function onResults(results) {
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+        
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        let activeA = false, activeB = false;
+
+        if (results.multiHandLandmarks) {
+            results.multiHandLandmarks.forEach((landmarks, index) => {
+                const isRightSide = results.multiHandedness[index].label === "Left"; // Espejo
+
+                const thumb = landmarks[4];
+                const indexF = landmarks[8];
+                const pinky = landmarks[20];
+
+                const distIndex = Math.hypot(thumb.x - indexF.x, thumb.y - indexF.y);
+                const distPinky = Math.hypot(thumb.x - pinky.x, thumb.y - pinky.y);
+
+                let speed = 0;
+                let dir = "forward";
+                let activeTip = null;
+
+                // LÓGICA DE DEDOS (ÍNDICE vs MEÑIQUE)
+                if (distIndex < distPinky) {
+                    dir = "forward";
+                    activeTip = indexF;
+                    if(distIndex > 0.03) speed = mapRange(distIndex, 0.03, 0.18, 0, 255);
+                } else {
+                    dir = "reverse";
+                    activeTip = pinky;
+                    if(distPinky > 0.03) speed = mapRange(distPinky, 0.03, 0.18, 0, 255);
+                }
+
+                speed = Math.round(Math.min(255, Math.max(0, speed)));
+
+                if (!isRightSide) {
+                    controlData.motorA = speed;
+                    controlData.direccionA = dir;
+                    updateUI('a', speed, dir);
+                    activeA = true;
+                } else {
+                    controlData.motorB = speed;
+                    controlData.direccionB = dir;
+                    updateUI('b', speed, dir);
+                    activeB = true;
+                }
+
+                // Dibujar Línea de Pellizco
+                drawPinch(thumb, activeTip, dir, speed);
+            });
+        }
+
+        if(!activeA) resetMotor('a');
+        if(!activeB) resetMotor('b');
+
+        canvasCtx.restore();
+    }
+
+    function mapRange(v, iMin, iMax, oMin, oMax) {
+        return (v - iMin) * (oMax - oMin) / (iMax - iMin) + oMin;
+    }
+
+    function updateUI(m, s, d) {
+        document.getElementById(`val-${m}`).innerText = s;
+        document.getElementById(`dir-${m}`).innerText = d;
+        document.getElementById(`dir-${m}`).style.color = (d === "reverse") ? "var(--pink)" : "var(--cyan)";
+        
+        const path = document.getElementById(`gauge-${m}`);
+        const offset = 283 - (s / 255) * 283;
+        path.style.strokeDashoffset = offset;
+        path.style.stroke = (d === "reverse") ? "var(--pink)" : "var(--cyan)";
+    }
+
+    function resetMotor(m) {
+        controlData[`motor${m.toUpperCase()}`] = 0;
+        updateUI(m, 0, "IDLE");
+    }
+
+    function drawPinch(p1, p2, dir, speed) {
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
+        canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
+        canvasCtx.strokeStyle = (dir === "forward") ? "cyan" : "magenta";
+        canvasCtx.lineWidth = 5;
+        canvasCtx.stroke();
+    }
+
+    connectBtn.onclick = () => {
+        if (socket) socket.close();
+        socket = new WebSocket(ipInput.value);
+        socket.onopen = () => {
+            document.getElementById('status-led').classList.add('online');
+            alert("Conectado al ESP32");
+        };
+        socket.onclose = () => {
+            document.getElementById('status-led').classList.remove('online');
+        };
+        socket.onerror = () => alert("Error de conexión. Verifica el WiFi 'iavision'");
+    };
+
+    setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(controlData));
+        }
+    }, 50);
+
+</script>
+</body>
+</html>

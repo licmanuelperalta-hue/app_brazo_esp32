@@ -1,0 +1,372 @@
+:root {
+    --bg: #07100d;
+    --panel: #101a17;
+    --panel-2: #14231f;
+    --line: rgba(143, 211, 190, 0.22);
+    --text: #eef8f1;
+    --muted: #98aaa1;
+    --mint: #68f2b0;
+    --blue: #65b7ff;
+    --amber: #ffcb70;
+    --danger: #ff5c7a;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    background:
+        linear-gradient(120deg, rgba(104, 242, 176, 0.08), transparent 34%),
+        linear-gradient(310deg, rgba(101, 183, 255, 0.09), transparent 38%),
+        var(--bg);
+    color: var(--text);
+    font-family: "Rajdhani", Arial, sans-serif;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.app-shell {
+    width: min(1220px, calc(100% - 28px));
+    margin: 0 auto;
+    padding: 18px 0 28px;
+}
+
+.topbar {
+    display: grid;
+    grid-template-columns: minmax(230px, 1fr) minmax(520px, 1.6fr);
+    gap: 14px;
+    align-items: stretch;
+}
+
+.brand-block,
+.network-card,
+.status-strip,
+.control-panel,
+.servo-card,
+.telemetry-panel {
+    background: rgba(16, 26, 23, 0.88);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+}
+
+.brand-block {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.eyebrow,
+.label,
+label span {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+    letter-spacing: 0;
+}
+
+h1 {
+    margin-top: 5px;
+    font-family: "Orbitron", sans-serif;
+    font-size: clamp(1.45rem, 3.6vw, 2.65rem);
+}
+
+.network-card {
+    display: grid;
+    grid-template-columns: auto auto minmax(190px, 1fr) auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 16px;
+}
+
+.network-card strong,
+.status-strip strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 1.08rem;
+}
+
+.endpoint-wrap {
+    display: grid;
+    gap: 5px;
+}
+
+.endpoint-wrap label {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+input,
+select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    background: #08110f;
+    color: var(--text);
+    padding: 8px 10px;
+    outline: none;
+}
+
+input:focus,
+select:focus {
+    border-color: var(--mint);
+}
+
+#connect-btn,
+.secondary-action,
+.danger-action,
+.mode-switch button {
+    min-height: 42px;
+    border: 1px solid transparent;
+    color: #06100c;
+    background: var(--mint);
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.link-led {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #48514d;
+}
+
+.link-led.is-online {
+    background: var(--mint);
+    box-shadow: 0 0 16px var(--mint);
+}
+
+.status-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    margin: 14px 0;
+    overflow: hidden;
+}
+
+.status-strip article {
+    background: rgba(20, 35, 31, 0.72);
+    padding: 14px 16px;
+}
+
+.control-layout {
+    display: grid;
+    grid-template-columns: 310px 1fr;
+    gap: 14px;
+}
+
+.control-panel,
+.telemetry-panel {
+    padding: 18px;
+}
+
+.panel-heading {
+    margin-bottom: 14px;
+}
+
+.panel-heading h2 {
+    margin-top: 4px;
+    font-size: 1.35rem;
+}
+
+.mode-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.mode-switch button {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--line);
+}
+
+.mode-switch button.is-active {
+    background: var(--blue);
+    color: #04111d;
+}
+
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 10px 0;
+}
+
+.toggle-row input {
+    width: 18px;
+    min-height: 18px;
+}
+
+.field {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 13px;
+}
+
+.two-col {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.secondary-action,
+.danger-action {
+    width: 100%;
+    margin-top: 8px;
+    background: transparent;
+    color: var(--text);
+    border-color: var(--line);
+}
+
+.danger-action {
+    color: #1b0508;
+    background: var(--danger);
+}
+
+.servo-board {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.servo-card {
+    min-height: 158px;
+    padding: 18px;
+    display: grid;
+    align-content: space-between;
+    gap: 18px;
+}
+
+.grip-card {
+    grid-column: 1 / -1;
+}
+
+.servo-top {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.servo-index {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    background: rgba(104, 242, 176, 0.14);
+    border: 1px solid rgba(104, 242, 176, 0.4);
+    color: var(--mint);
+    font-family: "Orbitron", sans-serif;
+    font-weight: 700;
+}
+
+.servo-card h3 {
+    font-size: 1.5rem;
+}
+
+output {
+    color: var(--amber);
+    font-family: "Orbitron", sans-serif;
+    font-size: 1.2rem;
+}
+
+input[type="range"] {
+    padding: 0;
+    accent-color: var(--mint);
+}
+
+.telemetry-panel {
+    margin-top: 14px;
+}
+
+.emg-meter {
+    height: 22px;
+    background: #07100d;
+    border: 1px solid var(--line);
+    overflow: hidden;
+}
+
+.emg-bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--blue), var(--mint), var(--amber), var(--danger));
+    transition: width 0.12s ease;
+}
+
+pre {
+    min-height: 112px;
+    margin: 14px 0 0;
+    padding: 14px;
+    overflow: auto;
+    background: #050b09;
+    border: 1px solid var(--line);
+    color: #c9f5df;
+}
+
+.is-stopped .servo-card,
+.is-stopped .telemetry-panel {
+    border-color: rgba(255, 92, 122, 0.65);
+}
+
+@media (max-width: 900px) {
+    .topbar,
+    .control-layout,
+    .network-card,
+    .status-strip {
+        grid-template-columns: 1fr;
+    }
+
+    .network-card {
+        align-items: stretch;
+    }
+
+    .servo-board {
+        grid-template-columns: 1fr;
+    }
+
+    .grip-card {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 560px) {
+    .app-shell {
+        width: min(100% - 18px, 1220px);
+        padding-top: 9px;
+    }
+
+    .brand-block,
+    .network-card,
+    .control-panel,
+    .servo-card,
+    .telemetry-panel {
+        padding: 14px;
+    }
+
+    .two-col {
+        grid-template-columns: 1fr;
+    }
+}

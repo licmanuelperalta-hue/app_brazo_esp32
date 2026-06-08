@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI MOTION PRO</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <style>
+        body { background: #000; color: #00f2ff; font-family: sans-serif; text-align: center; margin: 0; }
+        #v-cont { width: 100vw; height: 50vh; background: #111; }
+        canvas { width: 100%; height: 100%; object-fit: cover; }
+        input { background: #111; border: 1px solid var(--cyan); color: #fff; padding: 10px; width: 70%; margin-top: 10px; }
+        .btn { background: #00f2ff; border: none; padding: 15px; width: 80%; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="v-cont"><canvas id="out"></canvas><video id="vid" style="display:none" playsinline></video></div>
+    
+    <input type="text" id="ip" placeholder="IP del ESP32 (ej. 192.168.1.75)">
+    <button class="btn" onclick="conectar()">VINCULAR SISTEMA</button>
+
+<script>
+    const vid = document.getElementById('vid'), out = document.getElementById('out'), ctx = out.getContext('2d');
+    let socket, hands, ctrl = { motorA: 0, motorB: 0, direccionA: "forward", direccionB: "forward" };
+
+    function conectar() {
+        const ip = document.getElementById('ip').value;
+        // IMPORTANTE: Como tu web es HTTPS, Chrome podría bloquear ws://
+        // Si no conecta, usa Chrome en una Laptop primero para probar
+        socket = new WebSocket('ws://' + ip + ':81');
+        socket.onopen = () => alert("MOTORES CONECTADOS");
+        socket.onerror = () => alert("ERROR: Chrome bloquea conexión insegura. Revisa la IP.");
+    }
+
+    const handsObj = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+    handsObj.setOptions({maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.7});
+    
+    handsObj.onResults(res => {
+        out.width = vid.videoWidth; out.height = vid.videoHeight;
+        ctx.drawImage(res.image, 0, 0, out.width, out.height);
+        let a = false, b = false;
+        if (res.multiHandLandmarks) {
+            res.multiHandLandmarks.forEach((lm, i) => {
+                const side = res.multiHandedness[i].label === "Left"; // Espejo
+                const thumb = lm[4], index = lm[8], pinky = lm[20];
+                const dIdx = Math.hypot(thumb.x-index.x, thumb.y-index.y);
+                const dPky = Math.hypot(thumb.x-pinky.x, thumb.y-pinky.y);
+                
+                let s = 0, d = "forward";
+                if(dIdx < dPky) { d="forward"; if(dIdx>0.03) s=Math.min(255,(dIdx-0.03)*1600); }
+                else { d="reverse"; if(dPky>0.03) s=Math.min(255,(dPky-0.03)*1800); }
+                
+                s = Math.round(s);
+                if(!side) { ctrl.motorA=s; ctrl.direccionA=d; a=true; }
+                else { ctrl.motorB=s; ctrl.direccionB=d; b=true; }
+                
+                ctx.beginPath(); ctx.moveTo(thumb.x*out.width, thumb.y*out.height);
+                ctx.lineTo((d=="forward"?index.x:pinky.x)*out.width, (d=="forward"?index.y:pinky.y)*out.height);
+                ctx.strokeStyle = (d=="forward"?"cyan":"magenta"); ctx.lineWidth=5; ctx.stroke();
+            });
+        }
+        if(!a) ctrl.motorA=0; if(!b) ctrl.motorB=0;
+        if(socket && socket.readyState === 1) socket.send(JSON.stringify(ctrl));
+    });
+
+    navigator.mediaDevices.getUserMedia({video:true}).then(s => {
+        vid.srcObject=s; vid.play();
+        const cam = new Camera(vid, {onFrame: async()=> {await handsObj.send({image:vid});}, width:480, height:360});
+        cam.start();
+    });
+</script>
+</body>
+</html>
