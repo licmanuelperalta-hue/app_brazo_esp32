@@ -39,6 +39,8 @@ const int TELEMETRY_INTERVAL = 50;
 int emgRaw = 0;
 int emgLevel = 0;
 
+void sendTelemetry(uint8_t num);
+
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED:
@@ -73,9 +75,9 @@ void handleWebSocketCommand(uint8_t num, const char* payload) {
     if (!systemState.safetyStopped) {
       JsonArray servosArray = doc["servos"];
       for (JsonObject servoObj : servosArray) {
-        int id = servoObj["id"] - 1;
+        int id = servoObj["id"].as<int>() - 1;
         if (id >= 0 && id < SERVO_COUNT) {
-          int angle = servoObj["angle"];
+          int angle = servoObj["angle"].as<int>();
           targetAngles[id] = constrain(angle, 0, 180);
         }
       }
