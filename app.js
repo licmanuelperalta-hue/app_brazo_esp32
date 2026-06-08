@@ -41,7 +41,8 @@ const elements = {
     signalReadout: document.getElementById("signal-readout"),
     packetReadout: document.getElementById("packet-readout"),
     emgBar: document.getElementById("emg-bar"),
-    payloadPreview: document.getElementById("payload-preview")
+    payloadPreview: document.getElementById("payload-preview"),
+    muscleGrid: document.getElementById("muscle-grid")
 };
 
 const servoInputs = DEFAULT_SERVO_ANGLES.map((_, index) => document.getElementById(`servo-${index}`));
@@ -57,6 +58,7 @@ function setMode(mode) {
     elements.emgMode.classList.toggle("is-active", mode === "emg");
     elements.modeReadout.textContent = mode === "manual" ? "Manual" : "Musculo";
     renderPayload();
+    updateMuscleGrid();
 }
 
 function setStopped(stopped) {
@@ -72,6 +74,7 @@ function updateServo(index, angle) {
     servoInputs[index].value = safeAngle;
     servoOutputs[index].textContent = `${safeAngle} grados`;
     renderPayload();
+    updateMuscleGrid();
 }
 
 function applyRestPosition() {
@@ -93,6 +96,7 @@ function updateEmgConfig() {
     }
 
     renderPayload();
+    updateMuscleGrid();
 }
 
 function buildPayload() {
@@ -216,7 +220,42 @@ elements.restBtn.addEventListener("click", applyRestPosition);
 elements.stopBtn.addEventListener("click", () => setStopped(!state.stopped));
 elements.connectBtn.addEventListener("click", connect);
 
+function initMuscleGrid() {
+    if (!elements.muscleGrid) return;
+    elements.muscleGrid.innerHTML = SERVO_NAMES.map((name, index) => `
+        <article class="muscle-item" data-muscle="${index}">
+            <span class="muscle-name">${name.toUpperCase()}</span>
+            <div class="muscle-bar-container">
+                <div class="muscle-bar" id="muscle-bar-${index}" style="width: 0%"></div>
+            </div>
+            <span class="muscle-value" id="muscle-value-${index}">0&deg;</span>
+            <span class="muscle-label">${state.servos[index]}&deg;</span>
+        </article>
+    `).join('');
+}
+
+function updateMuscleGrid() {
+    if (!elements.muscleGrid) return;
+    
+    const items = elements.muscleGrid.querySelectorAll('.muscle-item');
+    items.forEach((item, index) => {
+        const angle = state.servos[index];
+        const bar = item.querySelector('.muscle-bar');
+        const valueEl = item.querySelector('.muscle-value');
+        const labelEl = item.querySelector('.muscle-label');
+        
+        const percent = Math.round((angle / 180) * 100);
+        bar.style.width = `${percent}%`;
+        valueEl.textContent = `${angle}°`;
+        labelEl.textContent = `${angle}°`;
+        
+        item.classList.toggle('active', angle !== 90);
+        item.classList.toggle('emg-target', state.emg.enabled && state.mode === 'emg' && index === state.emg.targetServo);
+    });
+}
+
 updateEmgConfig();
 DEFAULT_SERVO_ANGLES.forEach((angle, index) => updateServo(index, angle));
+initMuscleGrid();
 setMode("manual");
 setInterval(sendPayload, SEND_INTERVAL_MS);
