@@ -21,12 +21,22 @@ int targetAngles[SERVO_COUNT] = {0, 0, 0, 0, 0};
 
 struct EMGConfig {
   bool enabled = false;
-  int targetServo = 0;
+  bool invertSignal = false;
   int lowThreshold = 650;
   int highThreshold = 2200;
   int openAngle = 90;
   int closeAngle = 0;
+  int deadband = 50;
+  int smoothingSamples = 8;
+  bool autoCalibrate = true;
+  int calMin = 4095;
+  int calMax = 0;
+  unsigned long lastCalTime = 0;
 } emgConfig;
+
+int emgBuffer[16];
+int emgBufferIndex = 0;
+int emgSmoothed = 0;
 
 struct SystemState {
   String mode = "manual";
@@ -89,24 +99,33 @@ void handleWebSocketCommand(uint8_t num, const char* payload) {
 
     JsonObject emgObj = doc["emg"];
     emgConfig.enabled = emgObj["enabled"] | false;
-    emgConfig.targetServo = constrain((emgObj["targetServo"] | 1) - 1, 0, SERVO_COUNT - 1);
+    emgConfig.invertSignal = emgObj["invert"] | false;
     emgConfig.lowThreshold = constrain(emgObj["thresholdLow"] | 650, 0, 4095);
     emgConfig.highThreshold = constrain(emgObj["thresholdHigh"] | 2200, 0, 4095);
     emgConfig.openAngle = constrain(emgObj["openAngle"] | 90, 0, 180);
     emgConfig.closeAngle = constrain(emgObj["closeAngle"] | 0, 0, 180);
+    emgConfig.deadband = constrain(emgObj["deadband"] | 50, 0, 500);
+    emgConfig.smoothingSamples = constrain(emgObj["smoothing"] | 8, 1, 16);
+    emgConfig.autoCalibrate = emgObj["autoCalibrate"] | true;
 
-    Serial.printf("[WS] Mode: %s, Safety: %s, EMG: %s, Target: %d\n",
+    Serial.printf("[WS] Mode: %s, Safety: %s, EMG: %s, Invert: %s, Cal: %s\n",
       systemState.mode.c_str(),
       systemState.safetyStopped ? "STOPPED" : "ACTIVE",
       emgConfig.enabled ? "ON" : "OFF",
-      emgConfig.targetServo);
+      emgConfig.invertSignal ? "YES" : "NO",
+      emgConfig.autoCalibrate ? "AUTO" : "MANUAL");
   }
 }
 
 void sendTelemetry(uint8_t num = 255) {
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<768> doc;
   doc["emgRaw"] = emgRaw;
+  doc["emgSmoothed"] = emgSmoothed;
   doc["emgLevel"] = emgLevel;
+  doc["emgLowTh"] = emgConfig.lowThreshold;
+  doc["emgHighTh"] = emgConfig.highThreshold;
+  doc["emgCalMin"] = emgConfig.calMin;
+  doc["emgCalMax"] = emgConfig.calMax;
   
   JsonArray servosArray = doc.createNestedArray("servos");
   for (int i = 0; i < SERVO_COUNT; i++) {
@@ -157,30 +176,74 @@ void updateServos() {
   }
 }
 
+void readEMG() {
+  int raw = analogRead(EMG_PIN);
+  
+  emgBuffer[emgBufferIndex] = raw;
+  emgBufferIndex = (emgBufferIndex + 1) % emgConfig.smoothingSamples;
+  
+  long sum = 0;
+  for (int i = 0; i < emgConfig.smoothingSamples; i++) {
+    sum += emgBuffer[i];
+  }
+  emgSmoothed = sum / emgConfig.smoothingSamples;
+  
+  emgRaw = emgSmoothed;
+  emgLevel = map(constrain(emgRaw, 0, 4095), 0, 4095, 0, 100);
+  
+  if (emgConfig.autoCalibrate && emgConfig.enabled) {
+    unsigned long now = millis();
+    if (emgRaw < emgConfig.calMin) emgConfig.calMin = emgRaw;
+    if (emgRaw > emgConfig.calMax) emgConfig.calMax = emgRaw;
+    
+    if (now - emgConfig.lastCalTime > 5000) {
+      int range = emgConfig.calMax - emgConfig.calMin;
+      if (range > 200) {
+        emgConfig.lowThreshold = emgConfig.calMin + range * 0.25;
+        emgConfig.highThreshold = emgConfig.calMin + range * 0.75;
+      }
+      emgConfig.lastCalTime = now;
+    }
+  }
+}
+
 void processEMG() {
   if (!emgConfig.enabled) return;
   if (systemState.mode != "emg") return;
   if (systemState.safetyStopped) return;
 
-  int target = emgConfig.targetServo;
-  int angle;
-  
-  if (emgRaw <= emgConfig.lowThreshold) {
-    angle = emgConfig.openAngle;
-  } else if (emgRaw >= emgConfig.highThreshold) {
-    angle = emgConfig.closeAngle;
-  } else {
-    float ratio = float(emgRaw - emgConfig.lowThreshold) / 
-                  float(emgConfig.highThreshold - emgConfig.lowThreshold);
-    angle = emgConfig.openAngle + ratio * (emgConfig.closeAngle - emgConfig.openAngle);
+  int signal = emgRaw;
+  if (emgConfig.invertSignal) {
+    signal = 4095 - signal;
   }
-  
-  targetAngles[target] = constrain(angle, 0, 180);
-}
 
-void readEMG() {
-  emgRaw = analogRead(EMG_PIN);
-  emgLevel = map(constrain(emgRaw, 0, 4095), 0, 4095, 0, 100);
+  int lowTh = emgConfig.lowThreshold;
+  int highTh = emgConfig.highThreshold;
+  int deadband = emgConfig.deadband;
+  
+  float ratio = 0.0;
+  
+  if (signal <= lowTh - deadband) {
+    ratio = 0.0;
+  } else if (signal >= highTh + deadband) {
+    ratio = 1.0;
+  } else if (signal >= lowTh - deadband && signal <= lowTh + deadband) {
+    ratio = 0.0;
+  } else if (signal >= highTh - deadband && signal <= highTh + deadband) {
+    ratio = 1.0;
+  } else {
+    ratio = float(signal - lowTh) / float(highTh - lowTh);
+    ratio = constrain(ratio, 0.0, 1.0);
+  }
+
+  int openA = emgConfig.openAngle;
+  int closeA = emgConfig.closeAngle;
+  int targetAngle = openA + ratio * (closeA - openA);
+  targetAngle = constrain(targetAngle, 0, 180);
+
+  for (int i = 0; i < SERVO_COUNT; i++) {
+    targetAngles[i] = targetAngle;
+  }
 }
 
 void setup() {
